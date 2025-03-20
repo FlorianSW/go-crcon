@@ -77,6 +77,30 @@ type mapRotationResponse struct {
 	Name        string `json:"pretty_name"`
 }
 
+type getServerSettings struct {
+	AutoBalanceEnabled   bool `json:"autobalance_enabled"`
+	AutoBalanceThreshold int  `json:"autobalance_threshold"`
+	IdleAutoKickTime     int  `json:"idle_autokick_time"`
+	MaxPingAutoKick      int  `json:"max_ping_autokick"`
+	QueueLength          int  `json:"queue_length"`
+	TeamSwitchCooldown   int  `json:"team_switch_cooldown"`
+	VipSlotsNumber       int  `json:"vip_slots_num"`
+	VoteKickEnabled      bool `json:"votekick_enabled"`
+}
+
+func (g getServerSettings) toServerSettings() ServerSettings {
+	return ServerSettings{
+		AutoBalanceEnabled:   g.AutoBalanceEnabled,
+		AutoBalanceThreshold: g.AutoBalanceThreshold,
+		IdleAutoKickTime:     g.IdleAutoKickTime,
+		MaxPingAutoKick:      g.MaxPingAutoKick,
+		QueueLength:          g.QueueLength,
+		TeamSwitchCooldown:   g.TeamSwitchCooldown,
+		VipSlotsNumber:       g.VipSlotsNumber,
+		VoteKickEnabled:      g.VoteKickEnabled,
+	}
+}
+
 type getMapRotationResponse []mapRotationResponse
 
 func (g getMapRotationResponse) toMapRotation() (res MapRotation) {

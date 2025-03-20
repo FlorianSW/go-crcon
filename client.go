@@ -99,13 +99,59 @@ func parseMapAndResult(c string) (string, Score) {
 }
 
 func (c *client) SwitchMap(ctx context.Context, id string) error {
-	u, err := url.JoinPath(c.baseUrl, "/api/set_map")
+	return c.makePost(ctx, "/api/set_map", setMapRequest{
+		MapId: id,
+	})
+}
+
+func (c *client) SetTeamSwitchCooldown(ctx context.Context, minutes int) error {
+	return c.makePost(ctx, "/api/set_team_switch_cooldown", setTeamSwitchCooldownRequest{
+		Minutes: minutes,
+	})
+}
+
+func (c *client) SetAutoBalanceThreshold(ctx context.Context, maxDiff int) error {
+	return c.makePost(ctx, "/api/set_autobalance_threshold", setAutoBalanceThresholdRequest{
+		MaxDiff: maxDiff,
+	})
+}
+
+func (c *client) SetWelcomeMessage(ctx context.Context, message string) error {
+	return c.makePost(ctx, "/api/set_welcome_message", setWelcomeMessage{
+		Message: message,
+	})
+}
+
+func (c *client) WelcomeMessage(ctx context.Context) (string, error) {
+	res, err := c.makeGet(ctx, "/api/get_welcome_message")
+	if err != nil {
+		return "", err
+	}
+	result, err := asResponse[string](res)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func (c *client) ServerSettings(ctx context.Context) (ServerSettings, error) {
+	res, err := c.makeGet(ctx, "/api/get_server_settings")
+	if err != nil {
+		return ServerSettings{}, err
+	}
+	result, err := asResponse[getServerSettings](res)
+	if err != nil {
+		return ServerSettings{}, err
+	}
+	return result.toServerSettings(), nil
+}
+
+func (c *client) makePost(ctx context.Context, p string, b interface{}) error {
+	u, err := url.JoinPath(c.baseUrl, p)
 	if err != nil {
 		return err
 	}
-	req, err := json.Marshal(setMapRequest{
-		MapId: id,
-	})
+	req, err := json.Marshal(b)
 	if err != nil {
 		return err
 	}
@@ -129,8 +175,8 @@ func (c *client) SwitchMap(ctx context.Context, id string) error {
 	return nil
 }
 
-func (c *client) MapRotation(ctx context.Context) (MapRotation, error) {
-	u, err := url.JoinPath(c.baseUrl, "/api/get_map_rotation")
+func (c *client) makeGet(ctx context.Context, u string) (*http.Response, error) {
+	u, err := url.JoinPath(c.baseUrl, u)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +196,15 @@ func (c *client) MapRotation(ctx context.Context) (MapRotation, error) {
 	}
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	return res, nil
+}
+
+func (c *client) MapRotation(ctx context.Context) (MapRotation, error) {
+	res, err := c.makeGet(ctx, "/api/get_map_rotation")
+	if err != nil {
+		return nil, err
 	}
 	result, err := asResponse[getMapRotationResponse](res)
 	if err != nil {
@@ -159,58 +214,16 @@ func (c *client) MapRotation(ctx context.Context) (MapRotation, error) {
 }
 
 func (c *client) MessagePlayer(ctx context.Context, playerId, message string) error {
-	u, err := url.JoinPath(c.baseUrl, "/api/message_player")
-	if err != nil {
-		return err
-	}
-	req, err := json.Marshal(messagePlayerRequest{
+	return c.makePost(ctx, "/api/message_player", messagePlayerRequest{
 		PlayerId: playerId,
 		Message:  message,
 	})
-	if err != nil {
-		return err
-	}
-	r, err := http.NewRequest("POST", u, bytes.NewReader(req))
-	if err != nil {
-		return err
-	}
-	r = r.WithContext(ctx)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.creds.ApiKey))
-
-	res, err := c.hc.Do(r)
-	if err != nil {
-		return err
-	}
-	if res.StatusCode == http.StatusForbidden {
-		return ErrForbidden
-	}
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
-	}
-	return nil
 }
 
 func (c *client) GameState(ctx context.Context) (GameState, error) {
-	u, err := url.JoinPath(c.baseUrl, "/api/get_gamestate")
+	res, err := c.makeGet(ctx, "/api/get_gamestate")
 	if err != nil {
 		return GameState{}, err
-	}
-	r, err := http.NewRequest("GET", u, nil)
-	if err != nil {
-		return GameState{}, err
-	}
-	r = r.WithContext(ctx)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.creds.ApiKey))
-
-	res, err := c.hc.Do(r)
-	if err != nil {
-		return GameState{}, err
-	}
-	if res.StatusCode == http.StatusForbidden {
-		return GameState{}, ErrForbidden
-	}
-	if res.StatusCode != http.StatusOK {
-		return GameState{}, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 	result, err := asResponse[getGameStateResponse](res)
 	if err != nil {
@@ -220,26 +233,9 @@ func (c *client) GameState(ctx context.Context) (GameState, error) {
 }
 
 func (c *client) PlayerIds(ctx context.Context) ([]string, error) {
-	u, err := url.JoinPath(c.baseUrl, "/api/get_playerids")
+	res, err := c.makeGet(ctx, "/api/get_playerids")
 	if err != nil {
 		return nil, err
-	}
-	r, err := http.NewRequest("GET", u+"?as_dict=true", nil)
-	if err != nil {
-		return nil, err
-	}
-	r = r.WithContext(ctx)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.creds.ApiKey))
-
-	res, err := c.hc.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode == http.StatusForbidden {
-		return nil, ErrForbidden
-	}
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 	result, err := asResponse[map[string]string](res)
 	if err != nil {
@@ -249,26 +245,9 @@ func (c *client) PlayerIds(ctx context.Context) ([]string, error) {
 }
 
 func (c *client) OwnPermissions(ctx context.Context) (OwnPermissions, error) {
-	u, err := url.JoinPath(c.baseUrl, "/api/get_own_user_permissions")
+	res, err := c.makeGet(ctx, "/api/get_own_user_permissions")
 	if err != nil {
 		return OwnPermissions{}, err
-	}
-	r, err := http.NewRequest("GET", u, nil)
-	if err != nil {
-		return OwnPermissions{}, err
-	}
-	r = r.WithContext(ctx)
-	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.creds.ApiKey))
-
-	res, err := c.hc.Do(r)
-	if err != nil {
-		return OwnPermissions{}, err
-	}
-	if res.StatusCode == http.StatusForbidden {
-		return OwnPermissions{}, ErrForbidden
-	}
-	if res.StatusCode != http.StatusOK {
-		return OwnPermissions{}, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 	result, err := asResponse[getOwnPermissions](res)
 	if err != nil {

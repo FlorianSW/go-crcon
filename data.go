@@ -49,6 +49,17 @@ type GameState struct {
 
 type MapRotation = []Map
 
+type ServerSettings struct {
+	AutoBalanceEnabled   bool
+	AutoBalanceThreshold int
+	IdleAutoKickTime     int
+	MaxPingAutoKick      int
+	QueueLength          int
+	TeamSwitchCooldown   int
+	VipSlotsNumber       int
+	VoteKickEnabled      bool
+}
+
 type Permissions []string
 
 func (p Permissions) ContainsOnly(o []string) bool {
